@@ -12,90 +12,71 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS MODERNO (PALETA ÉTICA & DARK MODE) ---
+# --- 2. CSS MODERNO & DESIGN SYSTEM ---
 st.markdown("""
     <style>
-        /* Variáveis de Cores Éticas */
-        :root {
-            --primary-color: #00bcd4;
-            --warning-color: #ffc107;
-            --background-color: #0e1117;
-            --secondary-background-color: #262730;
-            --text-color: #fafafa;
-        }
-
-        .stApp {
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
+        /* Ajuste fino de fontes e espaçamentos */
         h1 {
-            color: #00bcd4 !important;
-            font-family: 'Segoe UI', sans-serif;
+            color: #00bcd4;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-weight: 700;
-            border-bottom: 1px solid #30333d;
-            padding-bottom: 15px;
+            letter-spacing: -1px;
         }
-        h2, h3 { color: #e0e0e0 !important; }
-
-        /* CARDS */
-        div[data-testid="stMetric"] {
-            background-color: #1f2229;
-            border: 1px solid #30333d;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            text-align: center;
+        h2, h3 {
+            color: #e0e0e0;
+            font-weight: 600;
         }
         
-        div[data-testid="stMetricLabel"] > label { color: #a0a0a0 !important; }
-        div[data-testid="stMetricValue"] { color: #ffffff !important; }
+        /* CARDS CUSTOMIZADOS (Container de Resultado) */
+        div[data-testid="stMetric"] {
+            background-color: #1a1c24; /* Um pouco mais claro que o fundo */
+            border: 1px solid #30333d;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        div[data-testid="stMetricLabel"] {
+            color: #a0a0a0 !important; /* Cinza para o rótulo */
+        }
+        div[data-testid="stMetricValue"] {
+            color: #ffffff !important; /* Branco puro para o número */
+        }
 
-        /* WIDGETS */
-        .stRadio label, .stNumberInput label, .stSelectbox label, .stCheckbox label {
+        /* AJUSTE DE INPUTS (RADIO BUTTONS) */
+        /* Garante que o texto das perguntas seja legível */
+        .stRadio label p {
+            font-size: 16px;
             color: #e0e0e0 !important;
         }
         
-        section[data-testid="stSidebar"] {
-            background-color: var(--secondary-background-color);
-            border-right: 1px solid #30333d;
-        }
-
-        /* BOTÃO */
+        /* BOTÃO PRINCIPAL */
         div.stButton > button {
-            background: linear-gradient(90deg, #00bcd4 0%, #00acc1 100%);
+            background: linear-gradient(90deg, #00bcd4 0%, #008ba3 100%);
             color: white;
-            font-weight: 600;
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
+            font-weight: bold;
             border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
             width: 100%;
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            transition: all 0.3s ease;
         }
         div.stButton > button:hover {
-            box-shadow: 0 6px 16px rgba(0, 188, 212, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
             color: white;
         }
 
-        /* ALERTAS */
-        .stAlert {
-            background-color: #262730;
-            border: 1px solid #ffc107;
-            border-radius: 8px;
-            color: #ffc107;
-        }
-        
-        /* Links no Texto */
+        /* LINKS */
         a {
             color: #00bcd4 !important;
             text-decoration: none;
         }
-        a:hover {
-            text-decoration: underline;
-        }
-        
+        a:hover { text-decoration: underline; }
+
+        /* RODAPÉ LIMPO */
         footer {visibility: hidden;}
         #MainMenu {visibility: hidden;}
+        
     </style>
 """, unsafe_allow_html=True)
 
@@ -108,39 +89,41 @@ def carregar_modelo():
 
 modelo, scaler, colunas_treino = carregar_modelo()
 
-# --- 4. CABEÇALHO ---
+# --- 4. INTERFACE ---
 st.title("Sistema de Triagem TEA")
 st.markdown("**Protocolo:** AQ-10 (Child/Adolescent) | **Engine:** SVM Linear")
 
-st.warning("""
-    ⚠️ **AVISO LEGAL: ESTA FERRAMENTA NÃO SUBSTITUI A ANÁLISE CLÍNICA.**
-    
-    Este sistema é um modelo estatístico de apoio à decisão. Resultados positivos indicam apenas 
-    a necessidade de investigação aprofundada por um profissional de saúde qualificado.
+st.info("""
+    ℹ️ **AVISO DE USO:** Esta ferramenta é um modelo estatístico de apoio à decisão e **NÃO substitui a avaliação clínica**.
+    O objetivo é agilizar a identificação de sinais de risco para encaminhamento precoce.
 """)
 
 if modelo is None:
-    st.error("⚠️ **Erro de Sistema:** Modelos de IA não carregados.")
+    st.error("⚠️ **Erro de Sistema:** Arquivos do modelo não encontrados.")
     st.stop()
 
-# --- 5. BARRA LATERAL ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
-    st.markdown("### 📋 Perfil do Paciente")
+    st.markdown("### 📋 Dados Clínicos")
     idade = st.number_input("Idade (anos)", 1, 18, 6)
-    genero = st.selectbox("Sexo Biológico", ["Masculino", "Feminino"])
-    
-    st.markdown("### Histórico")
-    ictericia = st.checkbox("Histórico de Icterícia?")
-    familia = st.checkbox("Casos de TEA na família?")
+    genero = st.selectbox("Sexo", ["Masculino", "Feminino"])
     
     st.markdown("---")
-    with st.expander("ℹ️ Sobre o Modelo"):
-        # AQUI ESTÁ A ATUALIZAÇÃO COM O LINK
-        st.info("Baseado em SVM Linear com 100% de sensibilidade em testes controlados ([Artoni et al., 2022](https://sol.sbc.org.br/index.php/sbbd/article/view/30682)).")
+    st.markdown("### Histórico")
+    ictericia = st.checkbox("Icterícia Neonatal?")
+    familia = st.checkbox("Histórico Familiar de TEA?")
+    
+    st.markdown("---")
+    with st.expander("📚 Fundamentação Científica"):
+        st.markdown("""
+        Modelo baseado em SVM Linear com **100% de sensibilidade** em validação cruzada.
+        
+        Referência: [Artoni et al. (2022)](https://sol.sbc.org.br/index.php/sbbd/article/view/30682)
+        """)
 
-# --- 6. FORMULÁRIO ---
+# --- 6. QUESTIONÁRIO ---
 st.markdown("### 📝 Avaliação Comportamental")
-st.caption("Preencha com base na observação direta do comportamento.")
+st.caption("Responda com base na observação do comportamento da criança.")
 
 with st.form("form_aq10"):
     c1, c2 = st.columns(2)
@@ -162,15 +145,14 @@ with st.form("form_aq10"):
         q10 = st.radio("10. Tem dificuldade em fazer novos amigos?", ["Não", "Sim"], horizontal=True, key="q10")
     
     st.markdown("###")
-    submitted = st.form_submit_button("PROCESSAR TRIAGEM")
+    submitted = st.form_submit_button("🔍 PROCESSAR TRIAGEM")
 
 # --- 7. LÓGICA E RESULTADOS ---
 if submitted:
-    # Feedback visual rápido
-    with st.spinner("Analisando perfil comportamental..."):
-        time.sleep(0.6)
+    with st.spinner("Analisando padrões..."):
+        time.sleep(0.5)
 
-    # Mapeamento
+    # --- LÓGICA DE PONTUAÇÃO ---
     def p_dir(r): return 1 if r == "Sim" else 0
     def p_inv(r): return 1 if r == "Não" else 0
     
@@ -179,7 +161,7 @@ if submitted:
         'a6': p_inv(q6), 'a7': p_inv(q7), 'a8': p_inv(q8), 'a9': p_inv(q9), 'a10': p_dir(q10)
     }
     
-    # DataFrame
+    # --- PREPARAÇÃO ---
     entrada = pd.DataFrame(columns=colunas_treino)
     entrada.loc[0] = 0
     colunas_map = {c.lower().strip(): c for c in colunas_treino}
@@ -196,69 +178,70 @@ if submitted:
         if 'jaundice' in col_lower: entrada.at[0, col_real] = 1 if ictericia else 0
         if 'austim' in col_lower or 'family' in col_lower: entrada.at[0, col_real] = 1 if familia else 0
 
-    # Predição (Apenas Classe)
+    # --- PREDIÇÃO ---
     try:
         X_input = scaler.transform(entrada)
+        # prob = modelo.predict_proba(X_input)[0][1] # Opcional
         classe = modelo.predict(X_input)[0]
     except Exception as e:
-        st.error(f"Erro de processamento: {e}")
+        st.error(f"Erro técnico: {e}")
         st.stop()
 
     score_total = sum(scores.values())
-    
-    # Critério Clínico de Segurança
     risco_elevado = (classe == 1) or (score_total >= 6)
 
-    # --- EXIBIÇÃO CLÍNICA (2 COLUNAS) ---
+    # --- EXIBIÇÃO CLÍNICA ---
     st.markdown("---")
-    st.markdown("### 📊 Análise Clínica")
+    st.markdown("### 📊 Resultado da Análise")
     
-    # Layout centralizado de 2 colunas
-    col_a, col_b = st.columns(2)
+    c1, c2 = st.columns(2)
     
-    with col_a:
+    with c1:
         st.metric("Score AQ-10", f"{score_total}/10", help="Corte clínico sugerido: ≥ 6")
     
-    with col_b:
-        # Lógica de Cores Éticas
+    with c2:
         if risco_elevado:
-            lbl = "ATENÇÃO NECESSÁRIA"
-            cor_texto = "#ffca28" # Amarelo Ouro
+            texto_status = "ATENÇÃO NECESSÁRIA"
+            cor_status = "#ffca28" # Amarelo
             icone = "⚠️"
         else:
-            lbl = "BAIXA PROBABILIDADE"
-            cor_texto = "#00bcd4" # Azul Ciano
+            texto_status = "BAIXA PROBABILIDADE"
+            cor_status = "#00bcd4" # Azul
             icone = "🔹"
             
-        # Card Customizado HTML/CSS
+        # Card Customizado (HTML para garantir visual independente do tema)
         st.markdown(f"""
-            <div style="background-color: #1f2229; border: 1px solid {cor_texto}40; border-radius: 12px; padding: 10px; text-align: center;">
-                <span style="color: #a0a0a0; font-size: 13px;">Resultado da Triagem</span><br>
-                <span style="color: {cor_texto}; font-size: 20px; font-weight: 700;">{icone} {lbl}</span>
+            <div style="
+                background-color: #1a1c24; 
+                border: 1px solid {cor_status}60; 
+                border-radius: 8px; 
+                padding: 10px; 
+                text-align: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <span style="color: #a0a0a0; font-size: 13px; font-weight: 500;">Rastreamento IA</span><br>
+                <span style="color: {cor_status}; font-size: 22px; font-weight: 700;">{icone} {texto_status}</span>
             </div>
         """, unsafe_allow_html=True)
 
     st.write("") 
 
     if risco_elevado:
-        # Card Amarelo (Atenção)
-        st.markdown(f"""
-        <div style="background-color: #262730; border-left: 5px solid #ffca28; padding: 15px; border-radius: 5px;">
-            <h4 style="color: #ffca28; margin:0;">⚠️ Rastreamento Positivo</h4>
-            <p style="color: #e0e0e0; margin-top: 10px;">
-                O perfil comportamental (Score {score_total}) apresenta correlação significativa com características do espectro.
-            </p>
-            <p style="color: #e0e0e0;"><strong>Recomendação:</strong> Encaminhar para avaliação com neuropediatra ou especialista para diagnóstico diferencial.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.warning(f"""
+        **Sinais de Risco Identificados (Score {score_total})**
+        
+        O algoritmo e a pontuação indicam correlação com características do Espectro Autista.
+        
+        **👉 Conduta Sugerida:**
+        1. Encaminhamento para **Neuropediatria** ou **Psiquiatria Infantil**.
+        2. Aplicação de avaliação diagnóstica completa (ex: ADOS-2, ADI-R).
+        """)
     else:
-        # Card Azul (Informativo)
-        st.markdown(f"""
-        <div style="background-color: #262730; border-left: 5px solid #00bcd4; padding: 15px; border-radius: 5px;">
-            <h4 style="color: #00bcd4; margin:0;">🔹 Rastreamento Negativo</h4>
-            <p style="color: #e0e0e0; margin-top: 10px;">
-                O padrão de respostas não sugere risco elevado no momento.
-            </p>
-            <p style="color: #e0e0e0;"><strong>Recomendação:</strong> Manter acompanhamento de rotina e observar marcos do desenvolvimento.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info(f"""
+        **Perfil de Baixo Risco (Score {score_total})**
+        
+        O padrão de respostas é compatível com o desenvolvimento neurotípico esperado.
+        
+        **👉 Conduta Sugerida:**
+        1. Manter acompanhamento pediátrico de rotina.
+        2. Orientar pais sobre marcos do desenvolvimento.
+        """)
