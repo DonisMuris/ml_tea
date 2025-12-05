@@ -4,16 +4,52 @@ import numpy as np
 import joblib
 import time
 
-# --- 1. CONFIGURAÇÃO (UI PRO) ---
+# --- 1. CONFIGURAÇÃO VISUAL (CORRIGIDA) ---
 st.set_page_config(page_title="Triagem TEA (AQ-10)", page_icon="⚕️", layout="centered")
 
 st.markdown("""
     <style>
-    .main {background-color: #f9f9f9;}
-    h1 {color: #2c3e50; font-family: sans-serif; font-weight: 700;}
-    .stMetric {background-color: #ffffff; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
-    div.stButton > button {background-color: #005b96; color: white; width: 100%; border-radius: 5px; padding: 12px;}
-    div.stButton > button:hover {background-color: #034066; color: white; border: none;}
+    /* Fundo geral mais clínico (cinza bem claro) */
+    .main {background-color: #f4f6f9;}
+    
+    /* Títulos */
+    h1 {color: #1e3a8a; font-family: sans-serif; font-weight: 700;}
+    h3 {color: #374151;}
+    
+    /* --- CORREÇÃO DOS CARDS (METRICS) --- */
+    /* Container do card */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    /* Rótulo (ex: "Score AQ-10") - Cinza Escuro */
+    div[data-testid="stMetricLabel"] > label {
+        color: #4b5563 !important;
+        font-size: 14px;
+    }
+    
+    /* Valor (ex: "8/10") - Preto Forte */
+    div[data-testid="stMetricValue"] {
+        color: #111827 !important;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    
+    /* Botão */
+    div.stButton > button {
+        background-color: #2563eb; 
+        color: white; 
+        width: 100%; 
+        border-radius: 6px; 
+        padding: 12px;
+        border: none;
+        font-weight: 600;
+    }
+    div.stButton > button:hover {background-color: #1d4ed8; color: white;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -31,7 +67,7 @@ st.title("Sistema de Apoio à Decisão Clínica")
 st.caption("Protocolo: AQ-10 (Autism Spectrum Quotient) | Modelo: SVM Linear")
 
 if modelo is None:
-    st.error("⚠️ Erro crítico: Arquivos do modelo não encontrados. Faça o upload dos arquivos .pkl.")
+    st.error("⚠️ Erro: Arquivos .pkl não encontrados.")
     st.stop()
 
 # --- 4. INPUTS ---
@@ -65,79 +101,77 @@ with st.form("form_aq10"):
 
 # --- 5. PROCESSAMENTO BLINDADO ---
 if submitted:
-    # Mapeamento Lógico (AQ-10 Child)
-    # Perguntas diretas (Sim=1): 1, 10
-    # Perguntas inversas (Não=1): 2, 3, 4, 5, 6, 7, 8, 9
-    def pontuar(resp, tipo): return 1 if resp == tipo else 0
+    # A. Pontuação (Regra AQ-10 Child)
+    # Diretas (Sim=1): 1, 10
+    # Inversas (Não=1): 2, 3, 4, 5, 6, 7, 8, 9
+    def p_dir(r): return 1 if r == "Sim" else 0
+    def p_inv(r): return 1 if r == "Não" else 0
     
-    # Vetor de Score
-    v = {
-        'a1': pontuar(q1, "Sim"), 'a2': pontuar(q2, "Não"), 'a3': pontuar(q3, "Não"),
-        'a4': pontuar(q4, "Não"), 'a5': pontuar(q5, "Não"), 'a6': pontuar(q6, "Não"),
-        'a7': pontuar(q7, "Não"), 'a8': pontuar(q8, "Não"), 'a9': pontuar(q9, "Não"),
-        'a10': pontuar(q10, "Sim")
+    respostas = {
+        'a1': p_dir(q1), 'a2': p_inv(q2), 'a3': p_inv(q3), 'a4': p_inv(q4), 'a5': p_inv(q5),
+        'a6': p_inv(q6), 'a7': p_inv(q7), 'a8': p_inv(q8), 'a9': p_inv(q9), 'a10': p_dir(q10)
     }
     
-    # Dados Clínicos
-    dados = {
-        'age': idade,
-        'gender_m': 1 if genero == "Masculino" else 0,
-        'jaundice_yes': 1 if ictericia else 0,
-        'austim_yes': 1 if familia else 0
-    }
+    # B. Preparação para o Modelo (Mapeamento Flexível)
+    entrada = pd.DataFrame(columns=colunas_treino)
+    entrada.loc[0] = 0 # Inicia zerado
     
-    # Mapeamento para as colunas do modelo (AQUI ESTAVA O ERRO ANTES)
-    # Criamos um dicionário robusto que mapeia "a1" para "a1_score"
-    entrada_modelo = pd.DataFrame(columns=colunas_treino)
-    entrada_modelo.loc[0] = 0 # Inicializa com zeros
+    # Normaliza nomes para garantir o match
+    colunas_map = {c.lower().strip(): c for c in colunas_treino}
     
-    # Preenchimento inteligente
-    for col_treino in colunas_treino:
-        col_lower = col_treino.lower()
-        
-        # Mapeia Scores
-        if 'a1_' in col_lower or 'a1score' in col_lower: entrada_modelo.at[0, col_treino] = v['a1']
-        elif 'a2_' in col_lower: entrada_modelo.at[0, col_treino] = v['a2']
-        elif 'a3_' in col_lower: entrada_modelo.at[0, col_treino] = v['a3']
-        elif 'a4_' in col_lower: entrada_modelo.at[0, col_treino] = v['a4']
-        elif 'a5_' in col_lower: entrada_modelo.at[0, col_treino] = v['a5']
-        elif 'a6_' in col_lower: entrada_modelo.at[0, col_treino] = v['a6']
-        elif 'a7_' in col_lower: entrada_modelo.at[0, col_treino] = v['a7']
-        elif 'a8_' in col_lower: entrada_modelo.at[0, col_treino] = v['a8']
-        elif 'a9_' in col_lower: entrada_modelo.at[0, col_treino] = v['a9']
-        elif 'a10_' in col_lower: entrada_modelo.at[0, col_treino] = v['a10']
-        
-        # Mapeia Demográficos
-        elif 'age' in col_lower: entrada_modelo.at[0, col_treino] = dados['age']
-        elif 'gender' in col_lower: entrada_modelo.at[0, col_treino] = dados['gender_m']
-        elif 'jaundice' in col_lower: entrada_modelo.at[0, col_treino] = dados['jaundice_yes']
-        elif 'austim' in col_lower or 'family' in col_lower: entrada_modelo.at[0, col_treino] = dados['austim_yes']
+    # Preenche Scores
+    for key, val in respostas.items():
+        # Procura variações: 'a1', 'a1_score', 'A1', etc
+        for col_name_lower, col_real in colunas_map.items():
+            if key in col_name_lower and 'score' in col_name_lower:
+                entrada.at[0, col_real] = val
+                break # Achou, para
+                
+    # Preenche Demográficos
+    for col_name_lower, col_real in colunas_map.items():
+        if 'age' in col_name_lower: entrada.at[0, col_real] = idade
+        if 'gender' in col_name_lower: entrada.at[0, col_real] = 1 if genero == "Masculino" else 0
+        if 'jaundice' in col_name_lower: entrada.at[0, col_real] = 1 if ictericia else 0
+        if 'austim' in col_name_lower or 'family' in col_name_lower: entrada.at[0, col_real] = 1 if familia else 0
 
-    # Predição
-    X_input = scaler.transform(entrada_modelo)
+    # C. Predição
+    X_input = scaler.transform(entrada)
     prob = modelo.predict_proba(X_input)[0][1]
     classe = modelo.predict(X_input)[0]
-    score_total = sum(v.values())
+    score_total = sum(respostas.values())
 
-    # --- 6. RESULTADO ---
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
+    # --- 6. EXIBIÇÃO DE RESULTADOS ---
+    st.markdown("### 📊 Resultado da Triagem")
     
-    with col1:
+    # Colunas para métricas
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
         st.metric("Score AQ-10", f"{score_total}/10", help="Corte clínico sugerido: ≥ 6")
-    
-    with col2:
-        cor = "normal" if classe == 0 else "inverse"
-        label = "NEGATIVO" if classe == 0 else "POSITIVO"
-        st.metric("Rastreamento IA", label, delta_color=cor)
         
-    with col3:
+    with c2:
+        # Lógica de segurança: Se Score alto, mas IA deu negativo -> Alerta
+        if score_total >= 6 and classe == 0:
+            lbl = "INCONCLUSIVO"
+            cor = "off"
+        else:
+            lbl = "POSITIVO" if classe == 1 else "NEGATIVO"
+            cor = "inverse" if classe == 1 else "normal"
+        st.metric("Rastreamento IA", lbl, delta_color=cor)
+        
+    with c3:
         st.metric("Probabilidade TEA", f"{prob:.1%}")
 
-    # Lógica de coerência visual
-    if score_total >= 6 and classe == 0:
-        st.warning("⚠️ **Nota:** O Score está alto (≥6), mas a IA ponderou outros fatores (ex: idade/histórico) e sugeriu baixo risco. Prevalece a cautela clínica: investigue.")
-    elif classe == 1:
-        st.error(f"**Indicativo de TEA Detectado.** O padrão de respostas (Score {score_total}) é altamente compatível com o espectro.")
+    # Barra e Feedback
+    st.progress(prob)
+    
+    if classe == 1 or score_total >= 6:
+        st.warning(f"""
+        **Atenção:** O perfil comportamental (Score {score_total}) indica a necessidade de avaliação especializada.
+        \nO algoritmo detectou padrões compatíveis com o espectro autista com **{prob:.1%} de confiança**.
+        """)
     else:
-        st.success("**Baixo Risco Detectado.** O padrão de respostas é compatível com desenvolvimento neurotípico.")
+        st.success(f"""
+        **Baixo Risco:** O perfil atual não sugere traços significativos do espectro.
+        \nScore: {score_total}/10 | Probabilidade IA: {prob:.1%}
+        """)
