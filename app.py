@@ -15,22 +15,20 @@ st.set_page_config(
 # --- 2. CSS MODERNO (PALETA ÉTICA & DARK MODE) ---
 st.markdown("""
     <style>
-        /* Variáveis de Cores Éticas (Color Psychology) */
+        /* Variáveis de Cores Éticas */
         :root {
-            --primary-color: #00bcd4; /* Azul Ciano (Calma/Tecnologia) */
-            --warning-color: #ffc107; /* Amarelo Âmbar (Atenção/Cuidado) */
+            --primary-color: #00bcd4;
+            --warning-color: #ffc107;
             --background-color: #0e1117;
             --secondary-background-color: #262730;
             --text-color: #fafafa;
         }
 
-        /* Fundo Principal */
         .stApp {
             background-color: var(--background-color);
             color: var(--text-color);
         }
 
-        /* Títulos */
         h1 {
             color: #00bcd4 !important;
             font-family: 'Segoe UI', sans-serif;
@@ -40,19 +38,20 @@ st.markdown("""
         }
         h2, h3 { color: #e0e0e0 !important; }
 
-        /* --- CARDS DE RESULTADOS --- */
+        /* CARDS */
         div[data-testid="stMetric"] {
             background-color: #1f2229;
             border: 1px solid #30333d;
             border-radius: 12px;
             padding: 15px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            text-align: center;
         }
         
         div[data-testid="stMetricLabel"] > label { color: #a0a0a0 !important; }
         div[data-testid="stMetricValue"] { color: #ffffff !important; }
 
-        /* --- TEXTOS E WIDGETS --- */
+        /* WIDGETS */
         .stRadio label, .stNumberInput label, .stSelectbox label, .stCheckbox label {
             color: #e0e0e0 !important;
         }
@@ -62,7 +61,7 @@ st.markdown("""
             border-right: 1px solid #30333d;
         }
 
-        /* Botão Principal */
+        /* BOTÃO */
         div.stButton > button {
             background: linear-gradient(90deg, #00bcd4 0%, #00acc1 100%);
             color: white;
@@ -78,12 +77,21 @@ st.markdown("""
             color: white;
         }
 
-        /* Alertas Personalizados (Disclaimer) */
+        /* ALERTAS */
         .stAlert {
             background-color: #262730;
             border: 1px solid #ffc107;
             border-radius: 8px;
             color: #ffc107;
+        }
+        
+        /* Links no Texto */
+        a {
+            color: #00bcd4 !important;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
         }
         
         footer {visibility: hidden;}
@@ -100,17 +108,15 @@ def carregar_modelo():
 
 modelo, scaler, colunas_treino = carregar_modelo()
 
-# --- 4. CABEÇALHO E DISCLAIMER OBRIGATÓRIO ---
+# --- 4. CABEÇALHO ---
 st.title("Sistema de Triagem TEA")
 st.markdown("**Protocolo:** AQ-10 (Child/Adolescent) | **Engine:** SVM Linear")
 
-# Aviso Fixo no Topo
 st.warning("""
     ⚠️ **AVISO LEGAL: ESTA FERRAMENTA NÃO SUBSTITUI A ANÁLISE CLÍNICA.**
     
     Este sistema é um modelo estatístico de apoio à decisão. Resultados positivos indicam apenas 
-    a necessidade de investigação aprofundada por um profissional de saúde qualificado. 
-    **Nunca use este resultado para autodiagnóstico ou tratamento.**
+    a necessidade de investigação aprofundada por um profissional de saúde qualificado.
 """)
 
 if modelo is None:
@@ -129,7 +135,8 @@ with st.sidebar:
     
     st.markdown("---")
     with st.expander("ℹ️ Sobre o Modelo"):
-        st.info("Baseado em SVM Linear com 100% de sensibilidade em testes controlados (Artoni et al., 2022).")
+        # AQUI ESTÁ A ATUALIZAÇÃO COM O LINK
+        st.info("Baseado em SVM Linear com 100% de sensibilidade em testes controlados ([Artoni et al., 2022](https://sol.sbc.org.br/index.php/sbbd/article/view/30682)).")
 
 # --- 6. FORMULÁRIO ---
 st.markdown("### 📝 Avaliação Comportamental")
@@ -159,12 +166,9 @@ with st.form("form_aq10"):
 
 # --- 7. LÓGICA E RESULTADOS ---
 if submitted:
-    progress_text = "Calculando vetores de probabilidade..."
-    my_bar = st.progress(0, text=progress_text)
-    for p in range(100):
-        time.sleep(0.003)
-        my_bar.progress(p + 1, text=progress_text)
-    my_bar.empty()
+    # Feedback visual rápido
+    with st.spinner("Analisando perfil comportamental..."):
+        time.sleep(0.6)
 
     # Mapeamento
     def p_dir(r): return 1 if r == "Sim" else 0
@@ -192,10 +196,9 @@ if submitted:
         if 'jaundice' in col_lower: entrada.at[0, col_real] = 1 if ictericia else 0
         if 'austim' in col_lower or 'family' in col_lower: entrada.at[0, col_real] = 1 if familia else 0
 
-    # Predição
+    # Predição (Apenas Classe)
     try:
         X_input = scaler.transform(entrada)
-        prob = modelo.predict_proba(X_input)[0][1]
         classe = modelo.predict(X_input)[0]
     except Exception as e:
         st.error(f"Erro de processamento: {e}")
@@ -203,38 +206,37 @@ if submitted:
 
     score_total = sum(scores.values())
     
-    # Critério Clínico de Segurança: Se Score >= 6, considera positivo mesmo se a IA duvidar
+    # Critério Clínico de Segurança
     risco_elevado = (classe == 1) or (score_total >= 6)
 
-    # --- EXIBIÇÃO CLÍNICA ---
+    # --- EXIBIÇÃO CLÍNICA (2 COLUNAS) ---
     st.markdown("---")
     st.markdown("### 📊 Análise Clínica")
     
-    c1, c2, c3 = st.columns(3)
+    # Layout centralizado de 2 colunas
+    col_a, col_b = st.columns(2)
     
-    with c1:
+    with col_a:
         st.metric("Score AQ-10", f"{score_total}/10", help="Corte clínico sugerido: ≥ 6")
     
-    with c2:
+    with col_b:
         # Lógica de Cores Éticas
         if risco_elevado:
             lbl = "ATENÇÃO NECESSÁRIA"
-            cor_texto = "#ffca28" # Amarelo Ouro (Alerta, não perigo)
+            cor_texto = "#ffca28" # Amarelo Ouro
             icone = "⚠️"
         else:
             lbl = "BAIXA PROBABILIDADE"
-            cor_texto = "#00bcd4" # Azul Ciano (Calma)
+            cor_texto = "#00bcd4" # Azul Ciano
             icone = "🔹"
             
+        # Card Customizado HTML/CSS
         st.markdown(f"""
             <div style="background-color: #1f2229; border: 1px solid {cor_texto}40; border-radius: 12px; padding: 10px; text-align: center;">
                 <span style="color: #a0a0a0; font-size: 13px;">Resultado da Triagem</span><br>
                 <span style="color: {cor_texto}; font-size: 20px; font-weight: 700;">{icone} {lbl}</span>
             </div>
         """, unsafe_allow_html=True)
-
-    with c3:
-        st.metric("Confiança IA", f"{prob:.1%}", help="Certeza estatística do modelo.")
 
     st.write("") 
 
