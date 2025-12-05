@@ -90,7 +90,7 @@ def carregar_modelo():
 modelo, scaler, colunas_treino = carregar_modelo()
 
 # --- 4. INTERFACE ---
-st.title("Sistema de Triagem TEA")
+st.title("Sistema de Apoio à Triagem TEA")
 st.markdown("**Protocolo:** AQ-10 (Child/Adolescent) | **Engine:** SVM Linear")
 
 st.info("""
